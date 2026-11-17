@@ -6,7 +6,9 @@ Generate a fixed, explicitly fake key in configuration dumps, authorization logs
 
 This is a defensive rehearsal, not a general credential scanner or production redaction library. It never reads environment variables, discovers files recursively, contacts credential issuers, validates real keys or sends captured data anywhere.
 
-## Run the complete demo
+The sections below describe the original redaction mode. For the separate fixed SQLite credential-recovery exercise, see [the hands-on recovery task](docs/RECOVERY.md); its input, execution and exit-code rules differ.
+
+## Run the complete redaction demo
 
 Python 3.11+, no runtime dependencies. From this repository:
 
@@ -57,7 +59,7 @@ This fragment illustrates the shape only. All **13** case IDs must appear once f
 4. Run `python -m leak_rehearsal audit YOUR_CAPTURE.json --out NEW_REPORT_DIRECTORY`.
 5. Retain your capture locally. Recompute later with `python -m leak_rehearsal verify REPORT_DIRECTORY YOUR_CAPTURE.json`.
 
-The CLI **does not execute your adapter or arbitrary supplied commands**. You control and authorize the local test pipeline separately. No real application or production log collection occurs automatically.
+The original redaction CLI **does not execute your adapter or arbitrary supplied commands**. The optional recovery CLI runs only its packaged fixed Python worker, never supplied commands. You control and authorize the local test pipeline separately. No real application or production log collection occurs automatically.
 
 ### Actual Python logging example
 
@@ -128,3 +130,9 @@ Only primary documentation was reviewed; these tools were **not executed** for a
 No Windows/macOS, hosted CI, production redactor or real application deployment has been tested. FIFO/symlink tests can skip where unsupported; skips are not passes. No browser UI is included or claimed tested.
 
 MIT license. Original code and fixture content by walker512. No real keys, personal logs, upstream competitor implementation or user-private data are included.
+
+## Optional local recovery exercise (0.2)
+
+Practice actual persistent synthetic-token revocation, read-only replacement scopes and consumer switching with `python -m leak_rehearsal.recovery`. Start with [the hands-on recovery task](docs/RECOVERY.md). This is a fixed local SQLite exercise, not real-provider rotation, a production security service or an OS sandbox. Original redaction functionality and 31 tests remain unchanged.
+
+The recovery increment adds 23 tests: **54 total passed, zero skips** on the tested Linux/Python 3.12 environment. An offline wheel installation also completed the two-scenario recovery demo and verification outside the checkout. See its documentation for the precise execution and evidence limitations.

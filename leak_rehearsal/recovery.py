@@ -47,9 +47,15 @@ def connect(path):
             if a=='replacement' and r!=0:raise Invalid('Invalid replacement state.')
         if c.execute('SELECT * FROM reports').fetchall()!=[(1,'PUBLIC_SYNTHETIC_REPORT_v1')]:raise Invalid('Synthetic business data changed.')
         events=c.execute('SELECT seq,action,result FROM events ORDER BY seq').fetchall()
-        if len(events)>=256:raise Invalid('Exercise event limit reached.')
+        if len(events)>257:raise Invalid('Exercise event limit exceeded.')
         for i,(n,a,r) in enumerate(events,1):
             if n!=i or a not in ACTIONS or core.canonical(core.parse(r.encode())).decode()!=r:raise Invalid('Invalid exercise journal.')
+        if len(events)==257:
+            # One explicitly reserved containment entry, never a rolling/deleted log.
+            if events[-1][1:] != ('revoke-old',core.canonical({'status':'revoked','audit':'reserved_containment_entry'}).decode()):
+                raise Invalid('Invalid reserved containment entry.')
+            if c.execute("SELECT revoked FROM credentials WHERE alias='old'").fetchone()!=(1,):
+                raise Invalid('Containment entry contradicts credential state.')
         return c
     except (OSError,sqlite3.Error,Invalid):
         if 'c' in locals():c.close()
@@ -59,6 +65,15 @@ def transact(path,action):
     if action not in ACTIONS:raise Invalid('Unsupported fixed action.')
     c=connect(path)
     try:
+        count=c.execute('SELECT COUNT(*) FROM events').fetchone()[0]
+        if count>=256:
+            if action!='revoke-old':raise Invalid('Exercise event limit reached; only containment is available.')
+            c.execute("UPDATE credentials SET revoked=1 WHERE alias='old'")
+            result={'status':'revoked','audit':'reserved_containment_entry' if count==256 else 'existing_containment_entry'}
+            if count==256:
+                c.execute('INSERT INTO events(action,result) VALUES (?,?)',(action,core.canonical(result).decode()))
+            c.commit()
+            return result
         if action=='issue':
             c.execute('INSERT OR IGNORE INTO credentials VALUES (?,?,0,?)',('replacement',digest('replacement'),'read'))
             result={'status':'issued','scope':['read']}

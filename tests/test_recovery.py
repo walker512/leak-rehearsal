@@ -67,10 +67,10 @@ class RecoveryTests(unittest.TestCase):
   with self.assertRaises(core.Invalid):self.act('old-read')
   self.db.write_bytes(b'not sqlite')
   with self.assertRaises(core.Invalid):self.act('old-read')
- def test_limit_prevents_mutation(self):
+ def test_limit_reserves_containment(self):
   for i in range(256):r.transact(self.db,'old-read')
-  with self.assertRaises(core.Invalid):self.act('revoke-old')
-  with sqlite3.connect(self.db) as c:self.assertEqual(c.execute("SELECT revoked FROM credentials WHERE alias='old'").fetchone()[0],0)
+  self.assertEqual(self.act('revoke-old'),{'status':'revoked','audit':'reserved_containment_entry'})
+  with sqlite3.connect(self.db) as c:self.assertEqual(c.execute("SELECT revoked FROM credentials WHERE alias='old'").fetchone()[0],1)
  def test_cli(self):
   cmd=[sys.executable,'-m','leak_rehearsal.recovery']
   self.assertEqual(subprocess.run(cmd+['probe','--db',str(self.db)],capture_output=True).returncode,3)

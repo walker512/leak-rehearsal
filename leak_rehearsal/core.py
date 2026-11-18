@@ -130,8 +130,25 @@ def review(report):
 
 def new_files(folder,files):
     if any(len(data)>OUTPUT_LIMIT for data in files.values()):raise Invalid('Generated file limit exceeded.')
-    root=Path(folder);root.mkdir(exist_ok=False)
-    for name,data in files.items():(root/name).write_bytes(data)
+    # Fixed leaf names only; serialize and validate before reserving any output.
+    if any(not isinstance(name,str) or not name or name in ('.','..')
+           or '/' in name or '\\' in name or ':' in name or '\0' in name
+           for name in files):
+        raise Invalid('Invalid generated filename.')
+    root=Path(folder)
+    root.mkdir(mode=0o700,exist_ok=False)
+    for name,data in files.items():
+        flags=os.O_WRONLY|os.O_CREAT|os.O_EXCL|getattr(os,'O_NOFOLLOW',0)
+        fd=os.open(root/name,flags,0o600)
+        try:
+            with os.fdopen(fd,'wb') as stream:
+                fd=None
+                stream.write(data)
+        finally:
+            if fd is not None:
+                os.close(fd)
+    # Do not remove partial outputs on failure or alter pre-existing permissions.
+
 
 def generate(out):
     # No real token generation, environment access or arbitrary credential input.

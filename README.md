@@ -147,3 +147,29 @@ event rather than pretending to create more audit records. Other commands still
 refuse at capacity; this is not a successful recovery probe or production audit
 solution. See [capacity semantics](docs/RECOVERY.md). The corrected local suite
 has 67 tests passing, zero skips; no new GUI or cross-platform claim is made.
+
+### Private, exclusive output directories
+
+New `generate`, `audit` and recovery `demo` bundles reserve a fresh directory
+with POSIX mode `0700` and create each output exclusively with mode `0600`
+(subject to a more restrictive umask). Existing files, directories and dangling
+or ordinary leaf symlinks are rejected without changing their contents or
+permissions. Generated report bytes and verification of old bundles remain
+unchanged. Existing reports are **not** retroactively made private.
+
+Audit output does not contain captured text, but counts, statuses and hashes
+can still disclose information. Review before sharing. On Windows these mode
+arguments are not a verified owner-only ACL guarantee; use an appropriately
+restricted destination. No Windows/macOS or new hosted CI validation is claimed.
+Parent directories must be trusted and stable: this is not protection against
+another process running as you or malicious concurrent parent replacement.
+Publication is not atomic. A write failure can leave a private, incomplete
+directory; it is not automatically deleted or overwritten, and retry requires
+a new destination. Verify before use. No source capture or historical output
+permissions are changed.
+
+The privacy regression suite exercises a real subprocess with umask 022,
+exclusive concurrent reservations, existing files/directories, leaf symlinks,
+member substitution, failure preservation and pre-publication bounds. POSIX
+permission tests and unsupported symlink tests skip explicitly on platforms
+that cannot exercise them; a skip is not a pass.

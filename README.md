@@ -136,3 +136,14 @@ MIT license. Original code and fixture content by walker512. No real keys, perso
 Practice actual persistent synthetic-token revocation, read-only replacement scopes and consumer switching with `python -m leak_rehearsal.recovery`. Start with [the hands-on recovery task](docs/RECOVERY.md). This is a fixed local SQLite exercise, not real-provider rotation, a production security service or an OS sandbox. Original redaction functionality and 31 tests remain unchanged.
 
 The recovery increment adds 23 tests: **54 total passed, zero skips** on the tested Linux/Python 3.12 environment. An offline wheel installation also completed the two-scenario recovery demo and verification outside the checkout. See its documentation for the precise execution and evidence limitations.
+
+
+### Recovery at the audit limit
+
+The recovery exercise now reserves one final containment event after its 256
+ordinary events, so filling the teaching journal does not alone prevent old-token
+revocation. Repeated terminal revocations explicitly report use of the existing
+event rather than pretending to create more audit records. Other commands still
+refuse at capacity; this is not a successful recovery probe or production audit
+solution. See [capacity semantics](docs/RECOVERY.md). The corrected local suite
+has 67 tests passing, zero skips; no new GUI or cross-platform claim is made.

@@ -1,6 +1,7 @@
 """Fixed synthetic local authorization exercise. Not a security service."""
 import argparse, hashlib, json, os, sqlite3, stat, subprocess, sys, tempfile, time
 from pathlib import Path
+from contextlib import closing
 from . import core
 Invalid=core.Invalid
 TOKENS={'old':'PUBLIC_FAKE_RECOVERY_OLD_NOT_A_PROVIDER_KEY','replacement':'PUBLIC_FAKE_RECOVERY_READ_ONLY_NOT_A_PROVIDER_KEY'}
@@ -15,11 +16,13 @@ def initialize(path):
     p=Path(path)
     fd=os.open(p,os.O_WRONLY|os.O_CREAT|os.O_EXCL|getattr(os,'O_NOFOLLOW',0),0o600);os.close(fd)
     try:
-        with sqlite3.connect(p) as c:
-            for sql in SCHEMA.values():c.execute(sql)
-            c.execute("INSERT INTO meta VALUES (1,'old')")
-            c.execute('INSERT INTO credentials VALUES (?,?,0,?)',('old',digest('old'),'read,write,delete'))
-            c.execute("INSERT INTO reports VALUES (1,'PUBLIC_SYNTHETIC_REPORT_v1')")
+        # SQLite transaction contexts commit/rollback but do not close connections.
+        with closing(sqlite3.connect(p)) as c:
+            with c:
+                for sql in SCHEMA.values():c.execute(sql)
+                c.execute("INSERT INTO meta VALUES (1,'old')")
+                c.execute('INSERT INTO credentials VALUES (?,?,0,?)',('old',digest('old'),'read,write,delete'))
+                c.execute("INSERT INTO reports VALUES (1,'PUBLIC_SYNTHETIC_REPORT_v1')")
     except Exception:
         # Never delete an unknown or partially created file automatically.
         raise Invalid('Initialization incomplete.') from None

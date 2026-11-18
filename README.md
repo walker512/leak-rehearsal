@@ -173,3 +173,16 @@ exclusive concurrent reservations, existing files/directories, leaf symlinks,
 member substitution, failure preservation and pre-publication bounds. POSIX
 permission tests and unsupported symlink tests skip explicitly on platforms
 that cannot exercise them; a skip is not a pass.
+
+### Initialization connection lifetime
+
+The recovery exercise explicitly closes its SQLite initialization connection after
+transaction commit or rollback, including interruption. This does not change
+existing exercise data or delete an incomplete database on failure. The transaction
+context alone did not close the connection in earlier versions.
+
+This fix was tested on Linux/Python 3.12 with 79 tests, including repeated real
+SQLite success, statement failure and interruption with garbage collection disabled
+and connection references retained. Failed connection creation remains a controlled
+error with the exclusively created partial file preserved. These checks are not a
+new Windows/macOS, provider or production-service validation.

@@ -33,7 +33,7 @@ The demo actually runs 27 fresh client workers against two isolated temporary da
 
 Receipt records every fixed action and result; report rescoring checks exact coverage, protocol and expected statuses. Missing/reordered results are errors; recorded unexpected outcomes fail. `verify` only rescores supplied records and compares report bytes. It does not contact a service, replay requests or authenticate history. Someone who edits all files consistently can fabricate evidence. Neither database markers nor hashes authenticate origin. Reports omit credential literals and user paths; SQLite stores fixed synthetic credential digests and public business data. Do not put real secrets or private data in these files.
 
-Only this tool's self-created database should be used. The CLI checks fixed schema, fixed values, size (1 MiB), ordinary non-symlink leaf files, no sidecars, and at most 256 events. Schema validation is not a sandbox for malicious SQLite files. Same-user direct database edits can bypass all teaching rules; no resistant audit log is claimed. Trusted local parent directories are required; hostile path races are not solved. SQLite uses a one-second lock timeout and a two-second SQL progress budget. Each fixed worker has a five-second execution deadline and 16 KiB output budget, polled incrementally; startup, filesystem and cleanup can exceed these nominal limits. This is not a hard resource/memory/disk sandbox. Workers receive an empty explicit environment and no stdin, and execute only the packaged fixed Python entrypoint, not arbitrary supplied code.
+Only this tool's self-created database should be used. The CLI checks fixed schema, fixed values, size (1 MiB), ordinary non-symlink leaf files, no sidecars, and at most 256 ordinary events plus one reserved containment event. Schema validation is not a sandbox for malicious SQLite files. Same-user direct database edits can bypass all teaching rules; no resistant audit log is claimed. Trusted local parent directories are required; hostile path races are not solved. SQLite uses a one-second lock timeout and a two-second SQL progress budget. Each fixed worker has a five-second execution deadline and 16 KiB output budget, polled incrementally; startup, filesystem and cleanup can exceed these nominal limits. This is not a hard resource/memory/disk sandbox. Workers receive an empty explicit environment and no stdin, and execute only the packaged fixed Python entrypoint, not arbitrary supplied code.
 
 A failed action returns a controlled error, never a success observation. A probe is multiple distinct transactions and can be partial if interrupted or its event budget is exhausted; do not treat it as atomic. An init I/O error can leave a partial file; no automatic deletion or replacement occurs. Demo output must not exist and writes bounded, pre-serialized files only after all requests finish; a write failure can leave incomplete evidence. Verify rejects extra/missing files. Interrupted demos do not create a completed report.
 
@@ -41,8 +41,39 @@ A failed action returns a controlled error, never a success observation. A probe
 
 Only synthetic Linux/Python execution is tested. No actual provider, cloud account, real credential, real compromise, hosted service, Windows/macOS, UI or external security assessment is covered. This increment does not claim superiority to scanners or secret-management tools.
 
-**Event cap is a teaching limitation:** after 256 requests the exercise refuses every further action, including revocation. Start a new exercise database. This is deliberately not a production credential manager and refusal to revoke at an audit-log cap is not recommended security practice. `act` exit 0 means the fixed action completed, not that authorization succeeded; inspect its `status`. Only `probe` asserts the recovery conditions.
+**Bounded audit capacity:** after 256 ordinary events, all actions except
+`revoke-old` refuse without mutation. Containment has one reserved event (257):
+revocation and that event commit in the same SQLite transaction. The result is
+`{"status":"revoked","audit":"reserved_containment_entry"}`. Later repeated
+revocations return `audit: existing_containment_entry` without adding events;
+this explicitly means the invocation is **not separately journaled**. Nothing
+is silently dropped, renumbered or overwritten. A contradictory reserved event
+or unrevoked credential state is rejected. Existing valid version-1 databases
+remain usable; the reserve is a new supported terminal state.
+
+The cap still prevents reads, replacement issuance, consumer switching and the
+multi-request readiness probe. A successful reserved revocation proves only the
+fixed old credential was marked revoked, **not application recovery or service
+availability**. Start a new exercise for further learning. This finite teaching
+model is not production audit retention or a credential-management service.
+Concurrent workers may still receive controlled refusal from the existing
+conservative sidecar guard or SQLite lock budget: a refusal is not successful
+containment. Retry explicitly after the conflicting work stops. I/O/commit
+failures roll back both state and reserved event; the CLI reports an error. `act` exit 0 means the fixed action completed, not that authorization succeeded; inspect its `status`. Only `probe` asserts the recovery conditions.
 
 ## Validation of this increment
 
 54 tests passed with zero skips on Linux/Python 3.12 (31 original unchanged plus 23 recovery tests). These exercise real fresh workers, persistence, outage/recovery, irreversible/idempotent actions, scope refusal with unchanged synthetic data, redaction versus revocation, receipt semantic tampering, complete coverage, report bytes, CLI exit codes, special files, sidecars, schema and size limits. An offline wheel was built without fetching packages, installed in a new virtual environment, then `leak-recovery demo` and `verify` ran outside the source checkout. Both scenarios matched through 27 real fixed-worker invocations. Installed recovery source bytes were compared with the tested source. No actual provider, real credential, network service or GUI was tested.
+
+
+## Capacity-containment correction
+
+67 tests passed, zero skipped, on Linux/Python 3.12: the original 54 with the old
+cap-refuses-revocation expectation intentionally corrected, plus 13 new tests.
+The added tests cover 255/256/257 boundaries, real workers and CLI, repeated
+containment, unchanged prior events, rejected non-containment actions, eight
+concurrent fixed workers, inconsistent terminal state, over-cap rejection and
+injected INSERT/COMMIT failures with rollback. No real-provider, UI, Windows or
+macOS validation is implied. The fixed demo/verify protocol and ordinary action
+results are unchanged; reserved audit results are not admissible as substitutes
+inside the original 27-step demo receipt.
